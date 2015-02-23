@@ -11,6 +11,9 @@
     // some padding around the visualisation
     var padding = {'bottom': 170, 'left': 90, 'right': 40, 'top': 40};
 
+    // how long transitions will last
+    var transition_duration = 1000;
+
     // scale from median values to height
     var y_scale = d3.scale.linear()
         .range([height-padding.bottom, padding.top]);
@@ -32,39 +35,43 @@
 
     var y_axis = d3.svg.axis()
         .scale(y_scale)
-        .orient('left');
+        .orient('left')
+        .ticks(10);
 
-    // axes
-    var x_axis = d3.svg.axis()
-        .scale(x_scale)
-        .orient('bottom');
+    // data
+    var results;
 
-    var y_axis = d3.svg.axis()
-        .scale(y_scale)
-        .orient('left');
-
-    // how long transitions will last
-    var transition_duration = 1000;
+    // player names
+    var players;
+    var cheaters;
 
     // function for handling zoom event
     var zoom_handler = function() {
         
+        // update the y_axis
         svg.select('.y.axis')
             .transition()
             .call(y_axis);
 
+        // update the x_axis
+        // not simple, because it's an ordinal scale
         svg.select('.x.axis')
             .transition()
             .attr('transform', 'translate(' + d3.event.translate[0] + ',' +(height-padding.bottom)+ ')')
             .call(x_axis.scale(x_scale.rangeRoundBands([padding.left * d3.event.scale, (width-padding.right) * d3.event.scale],.5 * d3.event.scale, .4 * d3.event.scale)));
-
         svg.select('.x.axis')
             .selectAll('text')
             .style('text-anchor', 'end');
 
+        // zoom the chart elements
         container.attr('transform', 'translate(' + d3.event.translate + ')scale(' + d3.event.scale + ')');
     }
 
+    // zooming!
+    var zoom = d3.behavior.zoom()
+        .scaleExtent([0, 10])
+        .on("zoom", zoom_handler)
+        .y(y_scale);
 
     // find the indexes of the whisker reach values
     function whisker_reach(d, k) {
@@ -77,17 +84,6 @@
         while (d[--j] > (q3 + reach));    // find the first non-outlier
         return [i, j];                  // return the indexes
     }
-
-    var zoom = d3.behavior.zoom()
-        .scaleExtent([0, 10])
-        .on("zoom", zoom_handler)
-        .y(y_scale);
-
-    // data
-    var results;
-    // player names
-    var players;
-    var cheaters;
 
     // initialise the visualisation
     var init_plot = function() {
@@ -108,10 +104,12 @@
             .attr('height', height)
             .call(zoom);
 
+        // add a container for the chart elements
         container = svg.append('g')
             .attr('class', 'container')
             .call(zoom);
 
+        // a white rectangle to sit behind the x_axis
         svg.append('rect')
             .attr('x', padding.left)
             .attr('y', height - padding.bottom)
@@ -120,6 +118,7 @@
             .attr('fill', 'white')
             .attr('stroke', 'none');
 
+        // a white rectangle to sit behind the y_axis
         svg.append('rect')
             .attr('x', 0)
             .attr('y', 0)
@@ -165,16 +164,21 @@
             .style('opacity', 0);            
     }
 
+    // a function to reset the plot back to defaults
     var reset = function() {
+
+        // remove any existing elements
         svg.remove();
+
+        // figure out which results_set is currently selected
         var sel = document.getElementById('result_select');
         var selected = sel.options[sel.selectedIndex].value;
 
-        // reset y_scale scale from median values to height
+        // reset y_scale
         y_scale = d3.scale.linear()
             .range([height-padding.bottom, padding.top]);
 
-        // reset x_scale from player name to width
+        // reset x_scale
         x_scale = d3.scale.ordinal()
             .rangeRoundBands([padding.left, width-padding.right], 0.5, 0.4);
         
@@ -194,6 +198,7 @@
         // load the currently selected results set
         load_results(selected);        
     }
+
 
     // load results from the specified file
     var load_results = function(results) {
@@ -231,12 +236,14 @@
             y_scale.domain([min, max]);
             x_scale.domain(players);
 
+            // set the right scale for zooming
             zoom.y(y_scale);
 
             // draw the visualisation
             draw_plot(results);
         });
     }
+
 
     // function to draw a box_plot of the results
     var draw_plot = function(result_set) {
@@ -283,7 +290,7 @@
                 }
                 
             })
-            .attr("stroke", function(d) {
+            .attr("stroke", function(d) { // colour depends on cheater/not-cheater
                 if(cheaters.indexOf(d.player) == -1) {
                     return "blue";
                 } else {
